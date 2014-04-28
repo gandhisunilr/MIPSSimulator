@@ -13,7 +13,9 @@ class Pipeline:
     def __str__(self):
         pipeline_state=""
         pipeline_state += self.IF.__str__()
+        pipeline_state += self.ID.__str__()
         pipeline_state += self.EXADD.__str__()
+        pipeline_state += self.WB.__str__()
         return pipeline_state
 
     def update_pipeline(self):
@@ -28,17 +30,27 @@ class Pipeline:
         
         for i in range(1,11):
             print "-------------"+str(i)+"--------------"
-            last_stage_instruction = self.EXADD.last_stage.instruction
-            # Find whether there is instruction in last stage
             print self
+            last_stage_instruction = self.WB.last_stage.instruction
             self.WB.update_unit(i)
+            # Find whether there is instruction in last stage
+            if(self.WB.is_last_stage_free() and last_stage_instruction!=None):
+                print last_stage_instruction.operation+" completed at "+str(i)
+
+            if(self.WB.is_free() and not self.EXADD.is_last_stage_free()):
+                self.WB.add_inst(self.EXADD,i)
             
             self.EXADD.update_unit(i)
-            if(self.EXADD.is_last_stage_free() and last_stage_instruction!=None):
-                print last_stage_instruction.operation+" completed at "+str(i)
-            if(self.EXADD.is_free() and not self.IF.is_free()):
-                self.EXADD.add_inst(self.IF,i)
-                self.IF.update_unit(i)
+            if(self.EXADD.is_free() and not self.ID.is_free()):
+                self.EXADD.add_inst(self.ID,i)
+
+            self.ID.update_unit(i)
+            if(self.ID.is_free() and not self.IF.is_free()):
+                self.ID.add_inst(self.IF,i)
+            self.IF.update_unit(i)
+            
+
+
 
 if __name__ == '__main__':
     #unittest.main()
