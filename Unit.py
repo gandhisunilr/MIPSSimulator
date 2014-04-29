@@ -26,7 +26,8 @@ class Tests(unittest.TestCase):
             EXADD.update_unit(IF,i)
             if(EXADD.is_last_stage_free() and last_stage_instruction!=None):
                 print last_stage_instruction.operation+" completed at "+str(i)
-            IF.update_unit(None,i)
+        IF.update_unit(None,i)
+
 
 
 class Unit():
@@ -69,9 +70,10 @@ class Unit():
         if(self.is_pipelined):
             for i in range(self.number_of_stages-1,-1,-1):
                 #print "============="+str(i)+"==========="
-                self.stages[i].update_stage(clk)
-                if(self.stages[i].is_free() and i!=0):
-                    self.stages[i].add_inst(self.stages[i-1],clk)
+                if(i==0):
+                    self.stages[i].update_stage(None,clk)
+                else:
+                    self.stages[i].update_stage(self.stages[i-1],clk)
 
             if(prev_unit!=None):
                 if(self.is_free() and not prev_unit.is_last_stage_free()):

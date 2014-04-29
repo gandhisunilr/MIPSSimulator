@@ -12,11 +12,11 @@ class Tests(unittest.TestCase):
         self.assertEquals(self.s1.is_free(),0)
         
     def test_update_stage(self):
-        self.s2.update_stage(2)
+        self.s2.update_stage(None,2)
         self.assertEquals(self.s2.is_free(),1)
         
     def test_add_inst(self):
-        self.s3.update_stage(2)
+        self.s3.update_stage(None,2)
         self.assertEquals(self.s3.is_free(),1)
         self.s3.add_inst(self.s2,2)
         self.assertEquals(self.s3.is_free(),0)
@@ -36,12 +36,14 @@ class Stage():
         else:
             return 0
     
-    def update_stage(self,clk):
-        if(self.start == None):
-            return
-        if((self.start+self.number_of_cycles)==clk):
-            self.instruction = None
-            self.start = None
+    def update_stage(self,prev_stage,clk):
+        if(self.start != None):
+            # If there is inst in current stage
+            if((self.start+self.number_of_cycles)==clk):
+                self.instruction = None
+                self.start = None
+        if(self.is_free() and prev_stage!=None):
+            self.add_inst(prev_stage,clk)
         
     def add_inst(self,prev_stage,clk):
         if(self.instruction==None):
