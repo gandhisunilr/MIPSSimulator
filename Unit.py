@@ -17,18 +17,17 @@ class Tests(unittest.TestCase):
         IF = Unit('IF',1,True)
         IF.add_new_inst('GG: L.D F1, 4(R4)',0)
         EXADD = Unit('EXADD',6,True)
-        for i in range(1,11):
+        for i in range(1,8):
             print "-------------"+str(i)+"--------------"
-        #Find whether there is instruction in last stage
+            # Find whether there is instruction in last stage
             print IF
             print EXADD
             last_stage_instruction = EXADD.last_stage.instruction
-            EXADD.update_unit(i)
+            EXADD.update_unit(IF,i)
             if(EXADD.is_last_stage_free() and last_stage_instruction!=None):
                 print last_stage_instruction.operation+" completed at "+str(i)
-                if(EXADD.is_free() and not IF.is_free()):
-                    EXADD.add_inst(IF,i)
-                    IF.update_unit(i)
+            IF.update_unit(None,i)
+
 
 class Unit():
     def __init__(self,name,number_of_stages,is_pipelined):
@@ -52,7 +51,6 @@ class Unit():
         else:
             return 0
     
-    # This function will only be used for WB Unit
     def is_last_stage_free(self):
         return self.last_stage.is_free()
         
@@ -67,13 +65,19 @@ class Unit():
     def last_stage(self):
         return self.stages[self.number_of_stages-1]
 
-    def update_unit(self,clk):
+    def update_unit(self,prev_unit,clk):
         if(self.is_pipelined):
             for i in range(self.number_of_stages-1,-1,-1):
                 #print "============="+str(i)+"==========="
                 self.stages[i].update_stage(clk)
                 if(self.stages[i].is_free() and i!=0):
                     self.stages[i].add_inst(self.stages[i-1],clk)
+
+            if(prev_unit!=None):
+                if(self.is_free() and not prev_unit.is_last_stage_free()):
+                    self.add_inst(prev_unit,clk)
+                    return True
+            return False
         else:
             pass
     
@@ -86,8 +90,9 @@ class Unit():
     def __str__(self):
         unit_state = self.name+"\n"
         for i in range(self.number_of_stages):
-            unit_state += self.stages[i].__str__()
-        return unit_state
+            unit_state += '{:16s}'.format(self.stages[i].__str__())+"|"
+        return unit_state+"\n"
         
 if __name__ == '__main__':
     unittest.main()
+    

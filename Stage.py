@@ -66,7 +66,7 @@ class Stage():
             stage_state += " Start: "+str(self.start )
         else:
             stage_state += ":None"
-        return stage_state+"\n"
+        return stage_state
 
 if __name__ == '__main__':
     unittest.main()
