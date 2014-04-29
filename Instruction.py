@@ -77,5 +77,11 @@ class Instruction():
         else:
             print "Something is wrong with instruction: "+instruction_str
 
+        # Get Execution Unit required
+        f = open('executionUnit')
+        lines = f.readlines()
+        inst_exunit = {line.split(':')[0].strip():line.split(':')[1].strip() for line in lines}
+        self.exunit = inst_exunit[self.operation]
+
 if __name__ == '__main__':
     unittest.main()
