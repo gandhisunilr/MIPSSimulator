@@ -68,6 +68,6 @@ class Unit():
         
     def peek_completed_inst(self):
         if(len(self.completed_queue)!=0):
-            return self.completed_queue[len(self,completed_queue)-1][0]
+            return self.completed_queue[len(self.completed_queue)-1][0]
         else:
             return False

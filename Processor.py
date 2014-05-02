@@ -6,6 +6,7 @@ class Pipeline:
     def __init__(self):
         self.read_files()
         self.all_inst_fetched = False
+        self.current_inst = 0
 
         # Create All Units
         self.IF = Unit('IF',1,True)
@@ -50,11 +51,9 @@ class Pipeline:
         f.close()
 
     def update_pipeline(self):        
-        
-        current_inst = 0
-        first_instruction = Instruction(self.set_of_instructions[current_inst].strip())
+        first_instruction = Instruction(self.set_of_instructions[self.current_inst].strip())
         self.IF.add_new_inst(first_instruction)
-        current_inst +=1
+        self.current_inst +=1
         print "-------------1--------------"
         print self
         
@@ -62,38 +61,47 @@ class Pipeline:
             print "-------------"+str(i)+"--------------"
             self.WB.execute_unit()
             self.WB.remove_all_completed()
+
             self.EXADD.execute_unit()
-            if(self.WB.is_free()):
-                EX_complete_inst =self.EXADD.get_completed_inst()
-                if(EX_complete_inst!=False):
-                    if(self.WB.add_new_inst(EX_complete_inst)==False):
-                        print "Debugging Time"
-            
+            self.EXMULT.execute_unit()
+            self.EXDIV.execute_unit()
+            # This is where priority code will come
+            self.move_inst_unit(self.WB,self.EXADD)
+
             self.ID.execute_unit()
             ID_inst =  self.ID.peek_completed_inst()
-            if(self.EXADD.is_free()):
-                ID_complete_inst =self.ID.get_completed_inst()
-                if(ID_complete_inst!=False):
-                    if(self.EXADD.add_new_inst(ID_complete_inst)==False):
-                        print "Debugging Time"
-            
-            self.IF.execute_unit()
-            if(self.ID.is_free()):
-                IF_complete_inst =self.IF.get_completed_inst()
-                if(IF_complete_inst!=False):
-                    if(self.ID.add_new_inst(IF_complete_inst)==False):
-                        print "Debugging Time"
+            if(ID_inst!= False):
+                if(ID_inst.exunit == 'EXADD'):
+                    self.move_inst_unit(self.EXADD,self.ID)
+                elif(ID_inst.exunit == 'EXMULT'):
+                    self.move_inst_unit(self.EXMULT,self.ID)
+                elif(ID_inst.exunit == 'EXDIV'):
+                    self.move_inst_unit(self.EXDIV,self.ID)
 
-            if(self.IF.is_free() and self.all_inst_fetched==False):
-                new_inst = Instruction(self.set_of_instructions[current_inst].strip())
-                current_inst +=1
-                if(new_inst.operation!='HLT'):
-                    if(self.IF.add_new_inst(new_inst)==False):
-                        print "Debugging Time"
-                else:
-                    self.all_inst_fetched=True
+            self.IF.execute_unit()
+            self.move_inst_unit(self.ID,self.IF)
+            
+            self.move_inst_unit(self.IF,None)
             print self
             
+
+    def move_inst_unit(self,to_unit,from_unit):
+        if(to_unit.is_free()):
+            if(from_unit==None):
+                if(self.all_inst_fetched==False):
+                    from_unit_complete_inst = Instruction(self.set_of_instructions[self.current_inst].strip())
+                    self.current_inst +=1
+                    if(from_unit_complete_inst.operation=='HLT'):
+                        self.all_inst_fetched = True
+                        return
+                else:
+                        return
+            else:
+                from_unit_complete_inst =from_unit.get_completed_inst()
+            if(from_unit_complete_inst!=False):
+                if(to_unit.add_new_inst(from_unit_complete_inst)==False):
+                    print "Debugging Time"
+        
 
 if __name__ == '__main__':
     #unittest.main()
