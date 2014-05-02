@@ -48,6 +48,7 @@ class Instruction():
     #Process the Instruction and store class variables
     def __init__(self,instruction_str):
         instruction_str = instruction_str.upper()
+        self.instruction_str = instruction_str
         seperate_label = instruction_str.split(':')
         if(len(seperate_label)==2):
             self.label = seperate_label[0]

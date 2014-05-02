@@ -1,14 +1,11 @@
-import unittest
 from Unit import *
-
-class Tests(unittest.TestCase):
-    def setUp(self):
-        pass
+from Instruction import *
 
 class Pipeline:
     #get all parameters from file and initialize particular pipeline
     def __init__(self):
         self.read_files()
+        self.all_inst_fetched = False
 
         # Create All Units
         self.IF = Unit('IF',1,True)
@@ -18,6 +15,16 @@ class Pipeline:
         self.EXDIV = Unit('EXDIV',self.EXDIV_cycles,self.EXDIV_pipelined)
         self.WB = Unit('WB',1,True)
     
+    def __str__(self):
+        pipeline_state=""
+        pipeline_state += self.IF.__str__()+"\n"
+        pipeline_state += self.ID.__str__()+"\n"
+        pipeline_state += self.EXADD.__str__()+"\n"
+        pipeline_state += self.EXMULT.__str__()+"\n"
+        pipeline_state += self.EXDIV.__str__()+"\n"
+        pipeline_state += self.WB.__str__()+"\n"
+        return pipeline_state
+
     def read_files(self):
         # Read all instructions
         f = open('inst.txt')
@@ -42,59 +49,54 @@ class Pipeline:
         
         f.close()
 
-    
-    def __str__(self):
-        pipeline_state=""
-        pipeline_state += self.IF.__str__()+"\n"
-        pipeline_state += self.ID.__str__()+"\n"
-        pipeline_state += self.EXADD.__str__()+"\n"
-        pipeline_state += self.EXMULT.__str__()+"\n"
-        pipeline_state += self.EXDIV.__str__()+"\n"
-        pipeline_state += self.WB.__str__()+"\n"
-        return pipeline_state
-
     def update_pipeline(self):        
-        current_inst = 0
-        self.IF.add_new_inst(self.set_of_instructions[current_inst].strip(),0)
-        current_inst +=1
-
-        #while(1):
-        for i in range(1,15):
-            print "-------------"+str(i)+"--------------"
-            print self
-            last_stage_instruction = self.WB.last_stage.instruction
-            is_removed = self.WB.update_unit(self.EXADD,i)
-            if(is_removed and last_stage_instruction!=None):
-                print last_stage_instruction.operation+" completed at "+str(i)
-
-            self.ID_to_EX(i)
-            self.ID.update_unit(self.IF,i)
-            self.IF.update_unit(None,i)
-            if(self.IF.is_free() and current_inst!=len(self.set_of_instructions)):
-                self.IF.add_new_inst(self.set_of_instructions[current_inst].strip(),i)
-                current_inst +=1
-             
         
-    def ID_to_EX(self,clk):
-        if(not self.ID.is_free()):
-            if(self.ID.last_stage.instruction.exunit=='EXADD'):
-                self.EXADD.update_unit(self.ID,clk)
-            else:
-                self.EXADD.update_unit(None,clk)
-            if(self.ID.last_stage.instruction.exunit=='EXMULT'):
-                self.EXMULT.update_unit(self.ID,clk)
-            else:
-                self.EXMULT.update_unit(None,clk)
-            if(self.ID.last_stage.instruction.exunit=='EXDIV'):
-                self.EXDIV.update_unit(self.ID,clk)
-            else:
-                self.EXDIV.update_unit(None,clk)
-        else:
-            self.EXADD.update_unit(None,clk)
-            self.EXMULT.update_unit(None,clk)
+        current_inst = 0
+        first_instruction = Instruction(self.set_of_instructions[current_inst].strip())
+        self.IF.add_new_inst(first_instruction)
+        current_inst +=1
+        print "-------------1--------------"
+        print self
+        
+        for i in range(2,14):
+            print "-------------"+str(i)+"--------------"
+            self.WB.execute_unit()
+            self.WB.remove_all_completed()
+            self.EXADD.execute_unit()
+            if(self.WB.is_free()):
+                EX_complete_inst =self.EXADD.get_completed_inst()
+                if(EX_complete_inst!=False):
+                    if(self.WB.add_new_inst(EX_complete_inst)==False):
+                        print "Debugging Time"
+            
+            self.ID.execute_unit()
+            ID_inst =  self.ID.peek_completed_inst()
+            if(self.EXADD.is_free()):
+                ID_complete_inst =self.ID.get_completed_inst()
+                if(ID_complete_inst!=False):
+                    if(self.EXADD.add_new_inst(ID_complete_inst)==False):
+                        print "Debugging Time"
+            
+            self.IF.execute_unit()
+            if(self.ID.is_free()):
+                IF_complete_inst =self.IF.get_completed_inst()
+                if(IF_complete_inst!=False):
+                    if(self.ID.add_new_inst(IF_complete_inst)==False):
+                        print "Debugging Time"
+
+            if(self.IF.is_free() and self.all_inst_fetched==False):
+                new_inst = Instruction(self.set_of_instructions[current_inst].strip())
+                current_inst +=1
+                if(new_inst.operation!='HLT'):
+                    if(self.IF.add_new_inst(new_inst)==False):
+                        print "Debugging Time"
+                else:
+                    self.all_inst_fetched=True
+            print self
+            
 
 if __name__ == '__main__':
     #unittest.main()
     p1 = Pipeline()
-    p1.update_pipeline()
-    
+    p1.update_pipeline()            
+            
