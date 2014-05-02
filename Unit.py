@@ -81,8 +81,13 @@ class Unit():
                     return True
             return False
         else:
-            pass
-    
+             self.stages[0].update_stage(None,clk)
+             if(prev_unit!=None):
+                 if(self.is_free() and not prev_unit.is_last_stage_free()):
+                     self.add_inst(prev_unit,clk)
+                     return True
+             return False
+
     def add_new_inst(self,instruction_str,clk):
         if(self.is_free()):
             self.stages[0].add_new_inst(Instruction(instruction_str),clk)
@@ -91,10 +96,26 @@ class Unit():
 
     def __str__(self):
         unit_state = self.name+"\n"
-        for i in range(self.number_of_stages):
-            unit_state += '{:16s}'.format(self.stages[i].__str__())+"|"
+        if(self.is_pipelined):
+            for i in range(self.number_of_stages):
+                unit_state += '{:16s}'.format(self.stages[i].__str__())+"|"
+        else:
+            unit_state += '{:16s}'.format(self.stages[0].__str__())+"|"
         return unit_state+"\n"
         
 if __name__ == '__main__':
-    unittest.main()
-    
+    #unittest.main()
+    IF = Unit('IF',1,True)
+    IF.add_new_inst('GG: L.D F1, 4(R4)',0)
+    EXADD = Unit('EXADD',6,True)
+    for i in range(1,8):
+        print "-------------"+str(i)+"--------------"
+        # Find whether there is instruction in last stage
+        print IF
+        print EXADD
+        last_stage_instruction = EXADD.last_stage.instruction
+        EXADD.update_unit(IF,i)
+        if(EXADD.is_last_stage_free() and last_stage_instruction!=None):
+            print last_stage_instruction.operation+" completed at "+str(i)
+        IF.update_unit(None,i)
+

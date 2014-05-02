@@ -37,24 +37,31 @@ class Stage():
             return 0
     
     def update_stage(self,prev_stage,clk):
-        if(self.start != None):
+        if(not self.is_free()):
             # If there is inst in current stage
-            if((self.start+self.number_of_cycles)==clk):
-                self.instruction = None
+            if((self.start+self.number_of_cycles)<=clk):
+                self.instruction =None
                 self.start = None
-        if(self.is_free() and prev_stage!=None):
-            self.add_inst(prev_stage,clk)
-        
+                if(prev_stage!=None):
+                    self.add_inst(prev_stage,clk)
+        else:
+            if(prev_stage!=None):
+                self.add_inst(prev_stage,clk)
+            else:
+                self.instruction =None
+                self.start = None
+
     def add_inst(self,prev_stage,clk):
-        if(self.instruction==None):
+        if(self.is_free() and prev_stage.instruction!=None):
             self.instruction = prev_stage.instruction
             self.start= clk
         else:
-            print "cannot move from"+prev_stage.stage_no
-            print self.stage_no+ "is not free"
+            # print "cannot move from"+str(prev_stage.stage_no)
+            # print str(self.stage_no)+ "is not free"
+            pass
 
     def  add_new_inst(self,instruction,clk):
-        if(self.instruction==None):
+        if(self.is_free()):
             self.instruction = instruction
             self.start= clk
         else:

@@ -45,10 +45,12 @@ class Pipeline:
     
     def __str__(self):
         pipeline_state=""
-        pipeline_state += self.IF.__str__()
-        pipeline_state += self.ID.__str__()
-        pipeline_state += self.EXADD.__str__()
-        pipeline_state += self.WB.__str__()
+        pipeline_state += self.IF.__str__()+"\n"
+        pipeline_state += self.ID.__str__()+"\n"
+        pipeline_state += self.EXADD.__str__()+"\n"
+        pipeline_state += self.EXMULT.__str__()+"\n"
+        pipeline_state += self.EXDIV.__str__()+"\n"
+        pipeline_state += self.WB.__str__()+"\n"
         return pipeline_state
 
     def update_pipeline(self):        
@@ -65,7 +67,7 @@ class Pipeline:
             if(is_removed and last_stage_instruction!=None):
                 print last_stage_instruction.operation+" completed at "+str(i)
 
-            self.EXADD.update_unit(self.ID,i)
+            self.ID_to_EX(i)
             self.ID.update_unit(self.IF,i)
             self.IF.update_unit(None,i)
             if(self.IF.is_free() and current_inst!=len(self.set_of_instructions)):
@@ -76,8 +78,20 @@ class Pipeline:
     def ID_to_EX(self,clk):
         if(not self.ID.is_free()):
             if(self.ID.last_stage.instruction.exunit=='EXADD'):
-                self.WB.update_unit(self.EXADD,i)
-            
+                self.EXADD.update_unit(self.ID,clk)
+            else:
+                self.EXADD.update_unit(None,clk)
+            if(self.ID.last_stage.instruction.exunit=='EXMULT'):
+                self.EXMULT.update_unit(self.ID,clk)
+            else:
+                self.EXMULT.update_unit(None,clk)
+            if(self.ID.last_stage.instruction.exunit=='EXDIV'):
+                self.EXDIV.update_unit(self.ID,clk)
+            else:
+                self.EXDIV.update_unit(None,clk)
+        else:
+            self.EXADD.update_unit(None,clk)
+            self.EXMULT.update_unit(None,clk)
 
 if __name__ == '__main__':
     #unittest.main()
