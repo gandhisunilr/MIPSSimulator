@@ -63,10 +63,32 @@ class Pipeline:
             self.WB.remove_all_completed()
 
             self.EXADD.execute_unit()
+            EXADD_inst =  self.EXADD.peek_completed_inst()
             self.EXMULT.execute_unit()
+            EXMULT_inst =  self.EXMULT.peek_completed_inst()
             self.EXDIV.execute_unit()
-            # This is where priority code will come
-            self.move_inst_unit(self.WB,self.EXADD)
+            EXDIV_inst =  self.EXDIV.peek_completed_inst()
+            
+            WB_inst_candidates = [EXADD_inst,EXMULT_inst,EXDIV_inst]
+            WB_unit_candidates = [self.EXADD,self.EXMULT,self.EXDIV]
+            set_of_inst_uppr = [instr.upper().strip() for instr in self.set_of_instructions]
+            WB_inst_final_candidates = []
+            WB_unit_final_candidates = []
+            insts_start = []
+            for i in range(len(WB_inst_candidates)):
+                if( WB_inst_candidates[i] != False):
+                    WB_inst_final_candidates.append(WB_inst_candidates[i])
+                    WB_unit_final_candidates.append(WB_unit_candidates[i])
+                    insts_start.append(set_of_inst_uppr.index(WB_inst_candidates[i].instruction_str))
+
+            prioritized_unit = self.max_priority(WB_inst_final_candidates,WB_unit_final_candidates,insts_start)
+            
+            if(prioritized_unit == self.EXADD):
+                self.move_inst_unit(self.WB,self.EXADD)
+            elif(prioritized_unit == self.EXMULT):
+                self.move_inst_unit(self.WB,self.EXMULT)
+            elif(prioritized_unit == self.EXDIV):
+                self.move_inst_unit(self.WB,self.EXDIV)
 
             self.ID.execute_unit()
             ID_inst =  self.ID.peek_completed_inst()
@@ -101,7 +123,18 @@ class Pipeline:
             if(from_unit_complete_inst!=False):
                 if(to_unit.add_new_inst(from_unit_complete_inst)==False):
                     print "Debugging Time"
-        
+    
+    def max_priority(self,inst_list,unit_list,insts_start):
+        if(len(inst_list)==0):
+            return None
+        priority = [0]*len(unit_list)
+        for i in range(len(unit_list)):
+            priority[i] += unit_list[i].number_of_cycles*10
+            priority[i] -= insts_start[i]
+            if(not unit_list[i].is_pipelined):
+                priority[i] += 32768
+        return unit_list[priority.index(max(priority))]
+            
 
 if __name__ == '__main__':
     #unittest.main()
