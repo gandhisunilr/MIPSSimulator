@@ -38,7 +38,8 @@ class Pipeline:
         EXADD_params = lines[0].split(':')[1].strip()
         EXMULT_params = lines[1].split(':')[1].strip()
         EXDIV_params = lines[2].split(':')[1].strip()
-        
+        EXINT_params = lines[3].split(':')[1].strip()
+
         self.EXADD_cycles = int(EXADD_params.split()[0].strip(','))
         self.EXADD_pipelined = EXADD_params.split()[1].upper()=='YES'
         
@@ -47,6 +48,9 @@ class Pipeline:
         
         self.EXDIV_cycles = int(EXDIV_params.split()[0].strip(','))
         self.EXDIV_pipelined = EXDIV_params.split()[1].upper()=='YES'
+        
+        self.EXINT_cycles = int(EXINT_params.split()[0].strip(','))
+        self.EXINT_pipelined = EXINT_params.split()[1].upper()=='YES'
         
         f.close()
 
@@ -57,31 +61,20 @@ class Pipeline:
         print "-------------1--------------"
         print self
         
-        for i in range(2,14):
+        for i in range(2,20):
             print "-------------"+str(i)+"--------------"
             self.WB.execute_unit()
             self.WB.remove_all_completed()
 
+            WB_inst_candidates = []
             self.EXADD.execute_unit()
-            EXADD_inst =  self.EXADD.peek_completed_inst()
+            WB_inst_candidates.append(self.EXADD.peek_completed_inst())
             self.EXMULT.execute_unit()
-            EXMULT_inst =  self.EXMULT.peek_completed_inst()
+            WB_inst_candidates.append(self.EXMULT.peek_completed_inst())
             self.EXDIV.execute_unit()
-            EXDIV_inst =  self.EXDIV.peek_completed_inst()
-            
-            WB_inst_candidates = [EXADD_inst,EXMULT_inst,EXDIV_inst]
+            WB_inst_candidates.append(self.EXDIV.peek_completed_inst())
             WB_unit_candidates = [self.EXADD,self.EXMULT,self.EXDIV]
-            set_of_inst_uppr = [instr.upper().strip() for instr in self.set_of_instructions]
-            WB_inst_final_candidates = []
-            WB_unit_final_candidates = []
-            insts_start = []
-            for i in range(len(WB_inst_candidates)):
-                if( WB_inst_candidates[i] != False):
-                    WB_inst_final_candidates.append(WB_inst_candidates[i])
-                    WB_unit_final_candidates.append(WB_unit_candidates[i])
-                    insts_start.append(set_of_inst_uppr.index(WB_inst_candidates[i].instruction_str))
-
-            prioritized_unit = self.max_priority(WB_inst_final_candidates,WB_unit_final_candidates,insts_start)
+            prioritized_unit = self.get_prioritized_unit(WB_inst_candidates,WB_unit_candidates)
             
             if(prioritized_unit == self.EXADD):
                 self.move_inst_unit(self.WB,self.EXADD)
@@ -124,7 +117,7 @@ class Pipeline:
                 if(to_unit.add_new_inst(from_unit_complete_inst)==False):
                     print "Debugging Time"
     
-    def max_priority(self,inst_list,unit_list,insts_start):
+    def __max_priority(self,inst_list,unit_list,insts_start):
         if(len(inst_list)==0):
             return None
         priority = [0]*len(unit_list)
@@ -135,6 +128,18 @@ class Pipeline:
                 priority[i] += 32768
         return unit_list[priority.index(max(priority))]
             
+    def get_prioritized_unit(self,WB_inst_candidates,WB_unit_candidates):
+        set_of_inst_uppr = [instr.upper().strip() for instr in self.set_of_instructions]
+        WB_inst_final_candidates = []
+        WB_unit_final_candidates = []
+        insts_start = []
+        for i in range(len(WB_inst_candidates)):
+            if( WB_inst_candidates[i] != False):
+                WB_inst_final_candidates.append(WB_inst_candidates[i])
+                WB_unit_final_candidates.append(WB_unit_candidates[i])
+                insts_start.append(set_of_inst_uppr.index(WB_inst_candidates[i].instruction_str))
+
+        return self.__max_priority(WB_inst_final_candidates,WB_unit_final_candidates,insts_start)
 
 if __name__ == '__main__':
     #unittest.main()
