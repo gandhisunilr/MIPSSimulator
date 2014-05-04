@@ -1,5 +1,6 @@
 from Unit import *
 from Instruction import *
+WORD_SIZE = 4
 
 class Pipeline:
     #get all parameters from file and initialize particular pipeline
@@ -69,6 +70,18 @@ class Pipeline:
         self.EXINT_cycles = int(EXINT_params.split()[0].strip(','))
         
         f.close()
+
+        # Read register file
+        file = open('reg.txt', 'r')
+        regs_string = file.readlines()
+        self.registers = {'R'+str(i):int(regs_string[i].strip(),2) for i in range(len(regs_string))}
+
+        # Read data file
+        self.word_size = 4
+        self.base_address = 256
+        file = open('data.txt', 'r')
+        data_string = file.readlines()
+        self.data = {self.base_address+(i*self.word_size):int(data_string[i].strip(),2) for i in range(len(data_string))}
 
     def update_pipeline(self):        
         first_instruction = Instruction(self.set_of_instructions[self.current_inst].strip(),self.current_inst)
