@@ -152,6 +152,9 @@ class Pipeline:
                     return False
             return from_unit_complete_inst
         else:
+            if(from_unit!=None and from_unit!=self.IF):
+                if(from_unit.peek_completed_inst()!=False):
+                    self.result[from_unit.peek_completed_inst().inst_addr][7] = 'Y'
             return False
 
     def move_inst_unit_unpipelined(self,to_unit,from_unit,number_of_cycles):
@@ -163,6 +166,8 @@ class Pipeline:
                     return False
             return from_unit_complete_inst
         else:
+            if(from_unit.peek_completed_inst()!=False):
+                self.result[from_unit.peek_completed_inst().inst_addr][7] = 'Y'
             return False
 
     def __max_priority(self,inst_list,unit_list,insts_start):
