@@ -46,7 +46,8 @@ class Instruction():
         self.operation = operation
     
     #Process the Instruction and store class variables
-    def __init__(self,instruction_str):
+    def __init__(self,instruction_str,inst_addr):
+        self.inst_addr = inst_addr
         instruction_str = instruction_str.upper()
         self.instruction_str = instruction_str
         seperate_label = instruction_str.split(':')

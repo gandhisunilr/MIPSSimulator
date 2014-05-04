@@ -32,6 +32,17 @@ class Unit():
                 self.inst_queue.append((new_inst,self.number_of_cycles))
                 self.number_of_inst +=1
 
+    # This function is to be used only for non pipelined units
+    def add_new_inst_unpipelined(self,new_inst,number_of_cycles):
+        if (self.is_pipelined):
+            print "Do not use this function"
+        else:
+            if self.number_of_inst==1:
+                return False
+            else:
+                self.inst_queue.append((new_inst,number_of_cycles))
+                self.number_of_inst +=1
+
     def execute_unit(self):
         updated_inst_queue = []
         for inst in self.inst_queue:
