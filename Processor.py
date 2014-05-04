@@ -1,6 +1,5 @@
 from Unit import *
 from Instruction import *
-WORD_SIZE = 4
 
 class Pipeline:
     #get all parameters from file and initialize particular pipeline
@@ -10,8 +9,10 @@ class Pipeline:
         self.current_inst = 0
         self.result = dict()
         self.register_status = dict()
-        self.__initialize_result()
-
+        # self.__initialize_result()
+        self.flush = False
+        self.inst_exec_list = {}
+        
         # Create All Units
         self.IF = Unit('IF',1,True)
         self.ID = Unit('ID',1,True)
@@ -28,8 +29,8 @@ class Pipeline:
 
     def __repr__(self):
         pipeline_state = ""
-        for i in range(len(self.set_of_instructions)):
-            pipeline_state += self.set_of_instructions[i].upper().strip()+":"+str(self.result[i])+"\n"
+        for i in range(len(self.inst_exec_list.keys())):
+            pipeline_state += self.inst_exec_list[i].upper().strip()+":"+str(self.result[i])+"\n"
         return pipeline_state
 
     def __str__(self):
@@ -86,13 +87,18 @@ class Pipeline:
 
     def update_pipeline(self):
         print self.registers
-        first_instruction = Instruction(self.set_of_instructions[self.current_inst].strip(),self.current_inst)
+        first_instruction = Instruction(self.set_of_instructions[self.registers['PC']].strip(),self.current_inst)
         self.IF.add_new_inst(first_instruction)
+        self.registers['PC'] +=1
         self.current_inst +=1
         print "-------------0--------------"
         print self.__repr__()
         
-        for i in range(1,40):
+        i = 1
+        while(1):
+            if(self.WB.is_free() and self.EXADD.is_free() and self.EXMULT.is_free() and self.EXDIV.is_free() and self.EXMEM.is_free() and self.EXIU.is_free() and self.all_inst_fetched):
+                break
+
             print "-------------"+str(i)+"--------------"
             self.WB.execute_unit()
             self.complete_execution(self.WB.get_completed_inst(),'WB',i)
@@ -143,11 +149,22 @@ class Pipeline:
                         self.handle_decode_inst(self.ID.get_completed_inst(),i)
 
             self.IF.execute_unit()
-            self.complete_execution(self.move_inst_unit(self.ID,self.IF),'IF',i)
-            
-            self.move_inst_unit(self.IF,None)
+            if(self.flush):
+                IF_inst = self.IF.get_completed_inst()
+                if IF_inst.inst_addr not in self.result.keys():
+                    self.result[IF_inst.inst_addr] = [0]*8
+                    self.inst_exec_list[IF_inst.inst_addr] = IF_inst.instruction_str
+                self.result[IF_inst.inst_addr][0] = i
+                self.flush = False
+            else:
+                self.complete_execution(self.move_inst_unit(self.ID,self.IF),'IF',i)
+
+            self.move_inst_unit(self.IF,None)                
+
             # print self.__repr__()
             # print self
+            i +=1
+
         print self.__repr__()
         print self.registers
 
@@ -155,12 +172,38 @@ class Pipeline:
         self.result[instruction.inst_addr][1] = clk
         if(instruction.operation=='HLT'):
             self.all_inst_fetched = True
+            self.flush = True
+
+        elif instruction.operation == 'J':
+            self.registers['PC'] = self._get_corresponding_inst(instruction.op1)
+            self.all_inst_fetched = False
+            self.flush = True
+
+        elif instruction.operation == 'BEQ':
+            if self.registers[instruction.dest] == self.registers[instruction.op1]:
+                self.registers['PC'] = self._get_corresponding_inst(instruction.op2)
+                self.all_inst_fetched = False
+                self.flush = True
+
+        elif instruction.operation == 'BNE':
+            if self.registers[instruction.dest] != self.registers[instruction.op1]:
+                self.registers['PC'] = self._get_corresponding_inst(instruction.op2)
+                self.all_inst_fetched = False
+                self.flush = True
+
+    def _get_corresponding_inst(self,label):
+        for i in range(len(self.set_of_instructions)):
+            instruction = Instruction(self.set_of_instructions[i],i)
+            if instruction.label==label:
+                return i
+
 
     def move_inst_unit(self,to_unit,from_unit):
         if(to_unit.is_free()):
             if(from_unit==None):
                 if(self.all_inst_fetched==False):
-                    from_unit_complete_inst = Instruction(self.set_of_instructions[self.current_inst].strip(),self.current_inst)
+                    from_unit_complete_inst = Instruction(self.set_of_instructions[self.registers['PC']].strip(),self.current_inst)
+                    self.registers['PC'] +=1
                     self.current_inst +=1
                 else:
                         return
@@ -218,6 +261,9 @@ class Pipeline:
     
     def complete_execution(self,instruction,execution_unit,clk):
         if(instruction!=False):
+            if instruction.inst_addr not in self.result.keys():
+                self.result[instruction.inst_addr] = [0]*8
+                self.inst_exec_list[instruction.inst_addr] = instruction.instruction_str
             if(execution_unit=='WB'):
                 print instruction.operation+" is completed"
                 self.result[instruction.inst_addr][3] = clk
