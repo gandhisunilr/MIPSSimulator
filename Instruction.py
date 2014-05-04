@@ -2,6 +2,11 @@
 #           : 'L.D F2, 8(R5)'
 #           : 'ADD.D F4, F6, F2'
 #           : 'HLT'
+#           : J LABEL 
+#           : BNE R3, R4, Label 
+#           : DADDI R1, R2, 43 
+
+
 import unittest
 
 class Tests(unittest.TestCase):
@@ -9,33 +14,54 @@ class Tests(unittest.TestCase):
         pass
     
     def test_create_instruction(self):
-        i1 = Instruction('GG: L.D F1, 4(R4)')
+        i1 = Instruction('GG: L.D F1, 4(R4)',0)
         self.assertEquals(i1.label,'GG')
         self.assertEquals(i1.operation,'L.D')
         self.assertEquals(i1.dest,'F1')
         self.assertEquals(i1.op1,'4(R4)')
         self.assertEquals(i1.op2,None)
 
-        i2 = Instruction('L.D F2, 8(R5)')
+        i2 = Instruction('L.D F2, 8(R5)',1)
         self.assertEquals(i2.label,None)
         self.assertEquals(i2.operation,'L.D')
         self.assertEquals(i2.dest,'F2')
         self.assertEquals(i2.op1,'8(R5)')
         self.assertEquals(i2.op2,None)
         
-        i3 = Instruction('ADD.D F4, F6, F2')
+        i3 = Instruction('ADD.D F4, F6, F2',2)
         self.assertEquals(i3.label,None)
         self.assertEquals(i3.operation,'ADD.D')
         self.assertEquals(i3.dest,'F4')
         self.assertEquals(i3.op1,'F6')
         self.assertEquals(i3.op2,'F2')
 
-        i4 = Instruction('HLT')
+        i4 = Instruction('HLT',3)
         self.assertEquals(i4.label,None)
         self.assertEquals(i4.operation,'HLT')
         self.assertEquals(i4.dest,None)
         self.assertEquals(i4.op1,None)
         self.assertEquals(i4.op2,None)
+
+        i5 = Instruction('J LABEL',4)
+        self.assertEquals(i5.label,None)
+        self.assertEquals(i5.operation,'J')
+        self.assertEquals(i5.dest,'LABEL')
+        self.assertEquals(i5.op1,None)
+        self.assertEquals(i5.op2,None)
+
+        i6 = Instruction('BNE R3, R4, Label',5)
+        self.assertEquals(i6.label,None)
+        self.assertEquals(i6.operation,'BNE')
+        self.assertEquals(i6.dest,'R3')
+        self.assertEquals(i6.op1,'R4')
+        self.assertEquals(i6.op2,'LABEL')
+
+        i7 = Instruction('DADDI R1, R2, 43 ',6)
+        self.assertEquals(i7.label,None)
+        self.assertEquals(i7.operation,'DADDI')
+        self.assertEquals(i7.dest,'R1')
+        self.assertEquals(i7.op1,'R2')
+        self.assertEquals(i7.op2,'43')
 
 class Instruction():
     def __init__(self,operation,op1,op2,dest,label):
@@ -68,7 +94,11 @@ class Instruction():
             return
         
         operands = seperate_operation[1].split()
-        if (len(operands)==2):
+        if (len(operands)==1):
+            self.dest = operands[0].strip()
+            self.op1 = None
+            self.op2 = None
+        elif (len(operands)==2):
             self.dest = operands[0].replace(',','')
             self.op1 = operands[1].replace(',','')
             self.op2 = None
@@ -87,3 +117,4 @@ class Instruction():
 
 if __name__ == '__main__':
     unittest.main()
+    
