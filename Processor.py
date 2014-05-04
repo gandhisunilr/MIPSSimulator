@@ -75,7 +75,8 @@ class Pipeline:
         file = open('reg.txt', 'r')
         regs_string = file.readlines()
         self.registers = {'R'+str(i):int(regs_string[i].strip(),2) for i in range(len(regs_string))}
-
+        self.registers['PC']=0
+        
         # Read data file
         self.word_size = 4
         self.base_address = 256
@@ -83,7 +84,8 @@ class Pipeline:
         data_string = file.readlines()
         self.data = {self.base_address+(i*self.word_size):int(data_string[i].strip(),2) for i in range(len(data_string))}
 
-    def update_pipeline(self):        
+    def update_pipeline(self):
+        print self.registers
         first_instruction = Instruction(self.set_of_instructions[self.current_inst].strip(),self.current_inst)
         self.IF.add_new_inst(first_instruction)
         self.current_inst +=1
@@ -137,6 +139,8 @@ class Pipeline:
                         self.complete_execution(self.move_inst_unit(self.EXDIV,self.ID),'ID',i)
                     elif(ID_inst.exunit == 'EXINT'):
                         self.complete_execution(self.move_inst_unit(self.EXIU,self.ID),'ID',i)
+                    elif(ID_inst.exunit == 'None'):
+                        self.handle_decode_inst(self.ID.get_completed_inst(),i)
 
             self.IF.execute_unit()
             self.complete_execution(self.move_inst_unit(self.ID,self.IF),'IF',i)
@@ -145,6 +149,12 @@ class Pipeline:
             # print self.__repr__()
             # print self
         print self.__repr__()
+        print self.registers
+
+    def handle_decode_inst(self,instruction,clk):
+        self.result[instruction.inst_addr][1] = clk
+        if(instruction.operation=='HLT'):
+            self.all_inst_fetched = True
 
     def move_inst_unit(self,to_unit,from_unit):
         if(to_unit.is_free()):
@@ -152,9 +162,6 @@ class Pipeline:
                 if(self.all_inst_fetched==False):
                     from_unit_complete_inst = Instruction(self.set_of_instructions[self.current_inst].strip(),self.current_inst)
                     self.current_inst +=1
-                    if(from_unit_complete_inst.operation=='HLT'):
-                        self.all_inst_fetched = True
-                        return
                 else:
                         return
             else:
@@ -216,6 +223,7 @@ class Pipeline:
                 self.result[instruction.inst_addr][3] = clk
                 self.register_status[instruction.dest]='FREE'
             elif(execution_unit in ['EXADD','EXMULT','EXDIV','EXMEM']):
+                self._execute(instruction)
                 self.result[instruction.inst_addr][2] = clk
                 # Execute the instruction here
             elif(execution_unit=='ID'):
@@ -239,6 +247,31 @@ class Pipeline:
                     self.result[instruction.inst_addr][6] = 'Y'
                     return True
         return False
+    def _execute(self,instruction):
+        if(instruction.operation == 'DADD'):
+            self.registers[instruction.dest] = self.registers[instruction.op1] + self.registers[instruction.op2]
+
+        elif instruction.operation == 'DADDI':
+            self.registers[instruction.dest] = self.registers[instruction.op1] + int(instruction.op2)
+
+        elif instruction.operation == 'DSUB':
+            self.registers[instruction.dest] = self.registers[instruction.op1] - self.registers[instruction.op2]
+
+        elif instruction.operation == 'DSUBI':
+            self.registers[instruction.dest] = self.registers[instruction.op1] - int(instruction.op2)
+
+        elif instruction.operation == 'AND':
+            self.registers[instruction.dest] = self.registers[instruction.op1] & self.registers[instruction.op2]
+
+        elif instruction.operation == 'ANDI':
+            self.registers[instruction.dest] = self.registers[instruction.op1] & int(instruction.op2)
+
+        elif instruction.operation == 'OR':
+            self.registers[instruction.dest] = self.registers[instruction.op1] | self.registers[instruction.op2]
+
+        elif instruction.operation == 'ORI':
+            self.registers[instruction.dest] = self.registers[instruction.op1] | int(instruction.op2)
+
 
 if __name__ == '__main__':
     #unittest.main()

@@ -91,6 +91,7 @@ class Instruction():
             self.dest = None
             self.op1 = None
             self.op2 = None
+            self.exunit = 'None'
             return
         
         operands = seperate_operation[1].split()
