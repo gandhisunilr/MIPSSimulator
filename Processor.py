@@ -1,6 +1,7 @@
 from Unit import *
 from Instruction import *
 from ICache import *
+from DCache import *
 
 class Pipeline:
     #get all parameters from file and initialize particular pipeline
@@ -24,6 +25,8 @@ class Pipeline:
         self.WB = Unit('WB',1,True)
 
         self.icache = ICache(self.ICache_cycles,self.EXINT_cycles)
+        
+        self.dcache = DCache(256,self.data,self.DCache_cycles,self.EXINT_cycles)
 
     def __repr__(self):
         pipeline_state = ""
@@ -134,7 +137,11 @@ class Pipeline:
             EXIU_inst =  self.EXIU.peek_completed_inst()
             if(EXIU_inst!= False):
                 if(EXIU_inst.operation in ['LW', 'SW', 'L.D', 'S.D'] ):
-                    self.complete_execution(self.move_inst_unit(self.EXMEM,self.EXIU),'EXIU',i)
+                    if(self.EXMEM.is_free()):
+                        first_word_time,second_word_time = self._calc_memory_cycles(EXIU_inst)
+                        self.complete_execution(self.move_inst_unit_unpipelined(self.EXMEM,self.EXIU,first_word_time+second_word_time),'EXIU',i)
+                    else:
+                        self.result[EXIU_inst.inst_addr][7] = 'Y'
                 else:
                     self.complete_execution(self.move_inst_unit_unpipelined(self.EXMEM,self.EXIU,1),'EXIU',i)
 
@@ -156,16 +163,18 @@ class Pipeline:
             self.IF.execute_unit()
             if(self.flush):
                 IF_inst = self.IF.get_completed_inst()
-                if IF_inst.inst_addr not in self.result.keys():
-                    self.result[IF_inst.inst_addr] = [0]*8
-                    self.inst_exec_list[IF_inst.inst_addr] = IF_inst.instruction_str
-                self.result[IF_inst.inst_addr][0] = i
+                if(IF_inst!=False):
+                    if IF_inst.inst_addr not in self.result.keys():
+                        self.result[IF_inst.inst_addr] = [0]*8
+                        self.inst_exec_list[IF_inst.inst_addr] = IF_inst.instruction_str
+                    self.result[IF_inst.inst_addr][0] = i
                 self.flush = False
             else:
                 self.complete_execution(self.move_inst_unit(self.ID,self.IF),'IF',i)
-                
-            cache_hit ,fetch_stall_cycles = self.icache.read(self.registers['PC']*4)
-            self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
+
+            if(self.IF.is_free()):
+                cache_hit ,fetch_stall_cycles = self.icache.read(self.registers['PC']*4)
+                self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
 
             # print self.__repr__()
             # print self
@@ -332,6 +341,35 @@ class Pipeline:
 
         elif instruction.operation == 'ORI':
             self.registers[instruction.dest] = self.registers[instruction.op1] | int(instruction.op2)
+
+    def _calc_memory_cycles(self,instruction):
+        if instruction.operation == 'LW':
+            offset = instruction.op1.split('(')[0].strip()
+            address = int(offset) + self.registers[instruction.op1.split('(')[1].strip(')')]
+            self.first_word_hit, self.registers[instruction.dest], cycles = self.dcache.read(address)
+            return cycles, 0
+
+        elif instruction.operation == 'L.D':
+            offset = instruction.op1.split('(')[0].strip()
+            address = int(offset) + self.registers[instruction.op1.split('(')[1].strip(')')]
+            self.first_word_hit, word, first_word_read_time = self.dcache.read(address)
+            self.second_word_hit, word, second_word_read_time = self.dcache.read(address + 4)
+            return first_word_read_time, second_word_read_time
+
+        elif instruction.operation == 'SW':
+            offset = instruction.op1.split('(')[0].strip()
+            address = int(offset) + self.registers[instruction.op1.split('(')[1].strip(')')]
+            self.first_word_hit, cycles = self.dcache.write(address, self.registers[instruction.src_reg[0]])
+            return cycles, 0
+
+        elif instruction.operation == 'S.D':
+            offset = instruction.op1.split('(')[0].strip()
+            address = int(offset) + self.registers[instruction.op1.split('(')[1].strip(')')]
+            self.first_word_hit, first_word_write_time = self.dcache.write(address, 0, False)
+            self.second_word_hit, second_word_write_time = self.dcache.write(address + 4, 0, False)
+            return first_word_write_time, second_word_write_time
+
+        return 1, 0
 
 
 if __name__ == '__main__':

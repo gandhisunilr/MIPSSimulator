@@ -1,0 +1,19 @@
+from CacheBlock import *
+
+class CacheSet:
+
+    cache_block_size = 4
+    def __init__(self, id, size):
+        self.id = 0
+        self.size = size
+        self.cache_block = []
+        for i in range(size):
+            self.cache_block.append(CacheBlock(i, self.cache_block_size))
+
+
+    def is_block_valid(self, blk_no):
+        return self.cache_block[blk_no].valid
+
+
+    def tag_for_block(self, blk_no):
+        return self.cache_block[blk_no].tag
