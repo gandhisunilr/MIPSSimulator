@@ -1,5 +1,6 @@
 from Unit import *
 from Instruction import *
+from ICache import *
 
 class Pipeline:
     #get all parameters from file and initialize particular pipeline
@@ -9,23 +10,20 @@ class Pipeline:
         self.current_inst = 0
         self.result = dict()
         self.register_status = dict()
-        # self.__initialize_result()
         self.flush = False
         self.inst_exec_list = {}
         
         # Create All Units
-        self.IF = Unit('IF',1,True)
+        self.IF = Unit('IF',1,False)
         self.ID = Unit('ID',1,True)
         self.EXMULT = Unit('EXMULT',self.EXMULT_cycles,self.EXMULT_pipelined)
         self.EXADD = Unit('EXADD',self.EXADD_cycles,self.EXADD_pipelined)
         self.EXDIV = Unit('EXDIV',self.EXDIV_cycles,self.EXDIV_pipelined)
         self.EXIU = Unit('EXIU',1,True)
         self.EXMEM = Unit('EXMEM',self.EXINT_cycles,False)
-        
         self.WB = Unit('WB',1,True)
 
-    def __initialize_result(self):
-        self.result =  {i:[0]*8 for i in range(len(self.set_of_instructions))}
+        self.icache = ICache(self.ICache_cycles,self.EXINT_cycles)
 
     def __repr__(self):
         pipeline_state = ""
@@ -58,6 +56,8 @@ class Pipeline:
         EXMULT_params = lines[1].split(':')[1].strip()
         EXDIV_params = lines[2].split(':')[1].strip()
         EXINT_params = lines[3].split(':')[1].strip()
+        ICache_params = lines[4].split(':')[1].strip()
+        DCache_params = lines[5].split(':')[1].strip()
 
         self.EXADD_cycles = int(EXADD_params.split()[0].strip(','))
         self.EXADD_pipelined = EXADD_params.split()[1].upper()=='YES'
@@ -69,7 +69,11 @@ class Pipeline:
         self.EXDIV_pipelined = EXDIV_params.split()[1].upper()=='YES'
         
         self.EXINT_cycles = int(EXINT_params.split()[0].strip(','))
+
+        self.ICache_cycles = int(ICache_params.split()[0].strip(','))
         
+        self.DCache_cycles = int(DCache_params.split()[0].strip(','))
+
         f.close()
 
         # Read register file
@@ -88,9 +92,10 @@ class Pipeline:
     def update_pipeline(self):
         print self.registers
         first_instruction = Instruction(self.set_of_instructions[self.registers['PC']].strip(),self.current_inst)
-        self.IF.add_new_inst(first_instruction)
-        self.registers['PC'] +=1
-        self.current_inst +=1
+
+        cache_hit ,fetch_stall_cycles = self.icache.read(self.registers['PC']*4)
+        self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
+        
         print "-------------0--------------"
         print self.__repr__()
         
@@ -158,8 +163,9 @@ class Pipeline:
                 self.flush = False
             else:
                 self.complete_execution(self.move_inst_unit(self.ID,self.IF),'IF',i)
-
-            self.move_inst_unit(self.IF,None)                
+                
+            cache_hit ,fetch_stall_cycles = self.icache.read(self.registers['PC']*4)
+            self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
 
             # print self.__repr__()
             # print self
@@ -222,15 +228,24 @@ class Pipeline:
 
     def move_inst_unit_unpipelined(self,to_unit,from_unit,number_of_cycles):
         if(to_unit.is_free()):
-            from_unit_complete_inst =from_unit.get_completed_inst()
+            if(from_unit==None):
+                if(self.all_inst_fetched==False):
+                    from_unit_complete_inst = Instruction(self.set_of_instructions[self.registers['PC']].strip(),self.current_inst)
+                    self.registers['PC'] +=1
+                    self.current_inst +=1
+                else:
+                        return
+            else:
+                from_unit_complete_inst =from_unit.get_completed_inst()
             if(from_unit_complete_inst!=False):
                 if(to_unit.add_new_inst_unpipelined(from_unit_complete_inst,number_of_cycles)==False):
                     print "Debugging Time"
                     return False
             return from_unit_complete_inst
         else:
-            if(from_unit.peek_completed_inst()!=False):
-                self.result[from_unit.peek_completed_inst().inst_addr][7] = 'Y'
+            if(from_unit!=None and from_unit!=self.IF):
+                if(from_unit.peek_completed_inst()!=False):
+                    self.result[from_unit.peek_completed_inst().inst_addr][7] = 'Y'
             return False
 
     def __max_priority(self,inst_list,unit_list,insts_start):
