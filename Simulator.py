@@ -2,11 +2,13 @@ from Unit import *
 from Instruction import *
 from ICache import *
 from DCache import *
+import sys
 
 class Pipeline:
     #get all parameters from file and initialize particular pipeline
-    def __init__(self):
-        self.read_files()
+    def __init__(self, file_inst, file_data, file_reg, file_config, file_result):
+        self.read_files(file_inst, file_data, file_reg, file_config)
+        self.file_result = file_result
         self.all_inst_fetched = False
         self.current_inst = 0
         self.result = dict()
@@ -73,14 +75,14 @@ class Pipeline:
         pipeline_state += self.WB.__str__()+"\n"
         return pipeline_state
 
-    def read_files(self):
+    def read_files(self,file_inst, file_data, file_reg, file_config):
         # Read all instructions
-        f = open('inst.txt')
+        f = open(file_inst)
         self.set_of_instructions = f.readlines()
         f.close()
         
         # Read config file
-        f = open('config.txt')
+        f = open(file_config)
         lines = f.readlines()
         EXADD_params = lines[0].split(':')[1].strip()
         EXMULT_params = lines[1].split(':')[1].strip()
@@ -89,14 +91,14 @@ class Pipeline:
         ICache_params = lines[4].split(':')[1].strip()
         DCache_params = lines[5].split(':')[1].strip()
 
-        self.EXADD_cycles = int(EXADD_params.split()[0].strip(','))
-        self.EXADD_pipelined = EXADD_params.split()[1].upper()=='YES'
+        self.EXADD_cycles = int(EXADD_params.split(',')[0].strip(','))
+        self.EXADD_pipelined = EXADD_params.split(',')[1].upper()=='YES'
         
-        self.EXMULT_cycles = int(EXMULT_params.split()[0].strip(','))
-        self.EXMULT_pipelined = EXMULT_params.split()[1].upper()=='YES'
+        self.EXMULT_cycles = int(EXMULT_params.split(',')[0].strip(','))
+        self.EXMULT_pipelined = EXMULT_params.split(',')[1].upper()=='YES'
         
-        self.EXDIV_cycles = int(EXDIV_params.split()[0].strip(','))
-        self.EXDIV_pipelined = EXDIV_params.split()[1].upper()=='YES'
+        self.EXDIV_cycles = int(EXDIV_params.split(',')[0].strip(','))
+        self.EXDIV_pipelined = EXDIV_params.split(',')[1].upper()=='YES'
         
         self.EXINT_cycles = int(EXINT_params.split()[0].strip(','))
 
@@ -107,7 +109,7 @@ class Pipeline:
         f.close()
 
         # Read register file
-        file = open('reg.txt', 'r')
+        file = open(file_reg, 'r')
         regs_string = file.readlines()
         self.registers = {'R'+str(i):int(regs_string[i].strip(),2) for i in range(len(regs_string))}
         self.registers['PC']=0
@@ -115,7 +117,7 @@ class Pipeline:
         # Read data file
         self.word_size = 4
         self.base_address = 256
-        file = open('data.txt', 'r')
+        file = open(file_data, 'r')
         data_string = file.readlines()
         self.data = {self.base_address+(i*self.word_size):int(data_string[i].strip(),2) for i in range(len(data_string))}
 
@@ -374,6 +376,7 @@ class Pipeline:
                     self.result[instruction.inst_addr][6] = 'Y'
                     return True
         return False
+
     def _execute(self,instruction):
         if(instruction.operation == 'DADD'):
             self.registers[instruction.dest] = self.registers[instruction.op1] + self.registers[instruction.op2]
@@ -443,14 +446,16 @@ class Pipeline:
         output += '\nTotal number of access requests for data cache: ' + str(self.dcache.request_count)
         output += '\nNumber of data cache hits: ' + str(self.dcache.hit_count)
 
-        file = open("output.txt", 'w')
+        file = open(self.file_result, 'w')
         file.write(output)
         file.close()
         print output
 
 if __name__ == '__main__':
-    #unittest.main()
-    p1 = Pipeline()
+    if len(sys.argv) != 6:
+        print('Usage: python Simulator.py inst.txt data.txt reg.txt config.txt result.txt')
+        exit()
+    p1 = Pipeline(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5])
     p1.update_pipeline()
     p1.print_result()
 

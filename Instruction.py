@@ -63,6 +63,13 @@ class Tests(unittest.TestCase):
         self.assertEquals(i7.op1,'R2')
         self.assertEquals(i7.op2,'43')
 
+        i8 = Instruction('GG: DSUBI R1,R1,2 ',6)
+        self.assertEquals(i8.label,'GG')
+        self.assertEquals(i8.operation,'DSUBI')
+        self.assertEquals(i8.dest,'R1')
+        self.assertEquals(i8.op1,'R1')
+        self.assertEquals(i8.op2,'2')
+
 class Instruction():
     def __init__(self,operation,op1,op2,dest,label):
         self.op1 = op1
@@ -94,19 +101,19 @@ class Instruction():
             self.exunit = 'None'
             return
         
-        operands = seperate_operation[1].split()
+        operands = seperate_operation[1].split(',')
         if (len(operands)==1):
             self.dest = operands[0].strip()
             self.op1 = None
             self.op2 = None
         elif (len(operands)==2):
-            self.dest = operands[0].replace(',','')
-            self.op1 = operands[1].replace(',','')
+            self.dest = operands[0].replace(',','').strip()
+            self.op1 = operands[1].replace(',','').strip()
             self.op2 = None
         elif(len(operands)==3):
-            self.dest = operands[0].replace(',','')
-            self.op1 = operands[1].replace(',','')
-            self.op2 = operands[2].replace(',','')
+            self.dest = operands[0].replace(',','').strip()
+            self.op1 = operands[1].replace(',','').strip()
+            self.op2 = operands[2].replace(',','').strip()
         else:
             print "Something is wrong with instruction: "+instruction_str
 
