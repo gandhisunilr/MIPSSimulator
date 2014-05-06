@@ -35,7 +35,30 @@ class Pipeline:
     def __repr__(self):
         pipeline_state = ""
         for i in range(len(self.inst_exec_list.keys())):
-            pipeline_state += self.inst_exec_list[i].upper().strip()+":"+str(self.result[i])+"\n"
+            pipeline_state += '{0: <24}'.format( self.inst_exec_list[i].upper().strip())+"\t"
+            pipeline_state += str(self.result[i][0]) + '\t'
+            pipeline_state += str(self.result[i][1]) + '\t'
+            pipeline_state += str(self.result[i][2]) + '\t'
+            pipeline_state += str(self.result[i][3]) + '\t'
+            if self.result[i][4]==0:
+                pipeline_state += ' N\t'
+            else:
+                pipeline_state += ' Y\t'
+            if self.result[i][5]==0:
+                pipeline_state += ' N\t'
+            else:
+                pipeline_state += ' Y\t'
+            if self.result[i][6]==0:
+                pipeline_state += ' N\t'
+            else:
+                pipeline_state += ' Y\t'
+            if self.result[i][7]==0:
+                pipeline_state += ' N\t'
+            else:
+                pipeline_state += ' Y\t'
+            
+            pipeline_state += '\n'
+        
         return pipeline_state
 
     def __str__(self):
@@ -210,8 +233,8 @@ class Pipeline:
             # print self
             i +=1
 
-        print self.__repr__()
-        print self.registers
+        # print self.__repr__()
+        # print self.registers
 
     def handle_decode_inst(self,instruction,clk):
         self.result[instruction.inst_addr][1] = clk
@@ -405,9 +428,29 @@ class Pipeline:
 
         return 1, 0
 
+    def print_result(self):
+
+        output = ''
+        output += '-' * 94 + '\n'
+        output += '\tInstruction\t\tFT\tID\tEX\tWB\tRAW\tWAR\tWAW\tStruct\n'
+        output += '-' * 94 + '\n'
+
+        output += self.__repr__()
+
+        output += '-' * 94 + '\n'
+        output += '\nTotal number of access requests for instruction cache: ' + str(self.icache.request_count)
+        output += '\nNumber of instruction cache hits: ' + str(self.icache.hit_count)
+        output += '\nTotal number of access requests for data cache: ' + str(self.dcache.request_count)
+        output += '\nNumber of data cache hits: ' + str(self.dcache.hit_count)
+
+        file = open("output.txt", 'w')
+        file.write(output)
+        file.close()
+        print output
 
 if __name__ == '__main__':
     #unittest.main()
     p1 = Pipeline()
-    p1.update_pipeline()            
+    p1.update_pipeline()
+    p1.print_result()
 
