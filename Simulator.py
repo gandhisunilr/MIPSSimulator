@@ -245,7 +245,7 @@ class Pipeline:
             self.flush = True
 
         elif instruction.operation == 'J':
-            self.registers['PC'] = self._get_corresponding_inst(instruction.op1)
+            self.registers['PC'] = self._get_corresponding_inst(instruction.dest)
             self.all_inst_fetched = False
             self.flush = True
 
