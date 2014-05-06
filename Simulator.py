@@ -92,13 +92,13 @@ class Pipeline:
         DCache_params = lines[5].split(':')[1].strip()
 
         self.EXADD_cycles = int(EXADD_params.split(',')[0].strip(','))
-        self.EXADD_pipelined = EXADD_params.split(',')[1].upper()=='YES'
+        self.EXADD_pipelined = EXADD_params.split(',')[1].upper().strip()=='YES'
         
         self.EXMULT_cycles = int(EXMULT_params.split(',')[0].strip(','))
-        self.EXMULT_pipelined = EXMULT_params.split(',')[1].upper()=='YES'
+        self.EXMULT_pipelined = EXMULT_params.split(',')[1].upper().strip()=='YES'
         
         self.EXDIV_cycles = int(EXDIV_params.split(',')[0].strip(','))
-        self.EXDIV_pipelined = EXDIV_params.split(',')[1].upper()=='YES'
+        self.EXDIV_pipelined = EXDIV_params.split(',')[1].upper().strip()=='YES'
         
         self.EXINT_cycles = int(EXINT_params.split()[0].strip(','))
 
@@ -363,7 +363,7 @@ class Pipeline:
 
     def hazards(self,instruction):
         if(instruction!= False):
-            if instruction.exunit == None:
+            if instruction.exunit == 'None':
                 op1 = instruction.dest
                 op2 = instruction.op1
                 dest = instruction.op2
