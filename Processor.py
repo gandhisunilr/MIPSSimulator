@@ -13,7 +13,9 @@ class Pipeline:
         self.register_status = dict()
         self.flush = False
         self.inst_exec_list = {}
-        
+        self.IBUS = 'FREE'
+        self.DBUS = 'FREE'
+
         # Create All Units
         self.IF = Unit('IF',1,False)
         self.ID = Unit('ID',1,True)
@@ -27,6 +29,8 @@ class Pipeline:
         self.icache = ICache(self.ICache_cycles,self.EXINT_cycles)
         
         self.dcache = DCache(256,self.data,self.DCache_cycles,self.EXINT_cycles)
+        self.dbus_access = 0
+        self.bus_contention = False
 
     def __repr__(self):
         pipeline_state = ""
@@ -95,7 +99,7 @@ class Pipeline:
     def update_pipeline(self):
         print self.registers
         first_instruction = Instruction(self.set_of_instructions[self.registers['PC']].strip(),self.current_inst)
-
+        
         cache_hit ,fetch_stall_cycles = self.icache.read(self.registers['PC']*4)
         self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
         
@@ -114,8 +118,14 @@ class Pipeline:
             self.EXADD.execute_unit()
             self.EXMULT.execute_unit()
             self.EXDIV.execute_unit()
-            self.EXMEM.execute_unit()
-
+            
+            if(not self.bus_contention):
+                self.EXMEM.execute_unit()
+            else:
+                if(self.IBUS=='FREE'):
+                    self.DBUS = 'BUSY'
+                    self.EXMEM.execute_unit()
+                
             WB_inst_candidates = []
             WB_inst_candidates.append(self.EXADD.peek_completed_inst())
             WB_inst_candidates.append(self.EXMULT.peek_completed_inst())
@@ -139,7 +149,14 @@ class Pipeline:
                 if(EXIU_inst.operation in ['LW', 'SW', 'L.D', 'S.D'] ):
                     if(self.EXMEM.is_free()):
                         first_word_time,second_word_time = self._calc_memory_cycles(EXIU_inst)
-                        self.complete_execution(self.move_inst_unit_unpipelined(self.EXMEM,self.EXIU,first_word_time+second_word_time),'EXIU',i)
+                        if(self.first_word_hit and self.second_word_hit):
+                            self.complete_execution(self.move_inst_unit_unpipelined(self.EXMEM,self.EXIU,first_word_time+second_word_time),'EXIU',i)
+                        else:
+                            if(self.IBUS=='FREE'):
+                                self.DBUS = 'BUSY'
+                                self.dbus_access = i
+                                self.complete_execution(self.move_inst_unit_unpipelined(self.EXMEM,self.EXIU,first_word_time+second_word_time),'EXIU',i)
+
                     else:
                         self.result[EXIU_inst.inst_addr][7] = 'Y'
                 else:
@@ -174,7 +191,20 @@ class Pipeline:
 
             if(self.IF.is_free()):
                 cache_hit ,fetch_stall_cycles = self.icache.read(self.registers['PC']*4)
-                self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
+                if(cache_hit):
+                    self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
+                else:
+                    if(self.DBUS=='FREE'):
+                        self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
+                        self.IBUS = 'BUSY'
+                    else:
+                        if(self.dbus_access==i):
+                            self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
+                            self.IBUS = 'BUSY'
+                            self.DBUS = 'FREE'
+                            self.bus_contention = True
+                        else:
+                            pass # STALL or do not move in IF stage
 
             # print self.__repr__()
             # print self
@@ -296,9 +326,13 @@ class Pipeline:
                 self._execute(instruction)
                 self.result[instruction.inst_addr][2] = clk
                 # Execute the instruction here
+                if(execution_unit=='EXMEM'):
+                    self.DBUS = 'FREE'
+                    self.bus_contention = False
             elif(execution_unit=='ID'):
                 self.result[instruction.inst_addr][1] = clk
                 self.register_status[instruction.dest]='BUSY'
+                self.IBUS ='FREE'
             elif(execution_unit=='IF'):
                 self.result[instruction.inst_addr][0] = clk
 
