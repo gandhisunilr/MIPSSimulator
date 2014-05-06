@@ -363,19 +363,30 @@ class Pipeline:
 
     def hazards(self,instruction):
         if(instruction!= False):
-            if(instruction.op1 in self.register_status):
-                if(self.register_status[instruction.op1]=='BUSY'):
+            if instruction.exunit == None:
+                op1 = instruction.dest
+                op2 = instruction.op1
+                dest = instruction.op2
+            else:
+                op1 = instruction.op1
+                op2 = instruction.op2
+                dest = instruction.dest
+            if(op1 in self.register_status):
+                if(self.register_status[op1]=='BUSY'):
                     self.result[instruction.inst_addr][4] = 'Y'
                     return True
-            if(instruction.op2 in self.register_status):
-                if(self.register_status[instruction.op2]=='BUSY'):
+            if(op2 in self.register_status):
+                if(self.register_status[op2]=='BUSY'):
                     self.result[instruction.inst_addr][4] = 'Y'
                     return True
-            if(instruction.dest in self.register_status):
-                if(self.register_status[instruction.dest]=='BUSY'):
+            if(dest in self.register_status):
+                if(self.register_status[dest]=='BUSY'):
                     self.result[instruction.inst_addr][6] = 'Y'
                     return True
         return False
+
+
+
 
     def _execute(self,instruction):
         if(instruction.operation == 'DADD'):
