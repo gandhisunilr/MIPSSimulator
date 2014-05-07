@@ -50,19 +50,19 @@ class DCache:
         write_cycles = 0
 
         for i in range(self.cache_sets):
-            if DCache._is_address_present_in_set(address, i):
-                DCache.hit_count += 1
-                DCache._set_lru(blk_no, i)
-                DCache._set_value(address, i, value, writable)
+            if self._is_address_present_in_set(address, i):
+                self.hit_count += 1
+                self._set_lru(blk_no, i)
+                self._set_value(address, i, value, writable)
                 return True, self.DCache_cycles
 
-        set_no = DCache.lru_for_cache_block[blk_no]
+        set_no = self.lru_for_cache_block[blk_no]
 
-        if DCache.sets[set_no].cache_block[blk_no].dirty:
-            write_cycles += DCache._write_back(set_no, blk_no)
+        if self.sets[set_no].cache_block[blk_no].dirty:
+            write_cycles += self._write_back(set_no, blk_no)
 
-        DCache._setup_block(address, set_no)
-        DCache._set_value(address, set_no, value, writable)
+        self._setup_block(address, set_no)
+        self._set_value(address, set_no, value, writable)
         return False, write_cycles + (self.DCache_cycles + self.Mem_cycles) * 2
 
 

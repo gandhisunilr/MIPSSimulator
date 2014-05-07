@@ -433,7 +433,7 @@ class Pipeline:
         elif instruction.operation == 'SW':
             offset = instruction.op1.split('(')[0].strip()
             address = int(offset) + self.registers[instruction.op1.split('(')[1].strip(')')]
-            self.first_word_hit, cycles = self.dcache.write(address, self.registers[instruction.src_reg[0]])
+            self.first_word_hit, cycles = self.dcache.write(address, self.registers[instruction.dest])
             return cycles, 0
 
         elif instruction.operation == 'S.D':
