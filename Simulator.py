@@ -231,7 +231,7 @@ class Pipeline:
                         else:
                             pass # STALL or do not move in IF stage
             if(self.IF.peek_completed_inst()!=False):
-                self.bus_contention = 'FREE'
+                self.bus_contention = False
                 self.IBUS = 'FREE'
 
             # print self.__repr__()
