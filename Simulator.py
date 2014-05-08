@@ -17,6 +17,8 @@ class Pipeline:
         self.inst_exec_list = {}
         self.IBUS = 'FREE'
         self.DBUS = 'FREE'
+        self.dbus_first_word_ctr = 0
+        self.dbus_second_word_ctr = 0
 
         # Create All Units
         self.IF = Unit('IF',1,False)
@@ -135,6 +137,21 @@ class Pipeline:
         while(1):
             if(self.WB.is_free() and self.EXADD.is_free() and self.EXMULT.is_free() and self.EXDIV.is_free() and self.EXMEM.is_free() and self.EXIU.is_free() and self.all_inst_fetched):
                 break
+   
+            if self.dbus_first_word_ctr!=0:
+                if self.dbus_first_word_ctr <0:
+                    self.dbus_first_word_ctr +=1 
+                    self.DBUS = 'FREE'
+                else:
+                    self.dbus_first_word_ctr -=1 
+                    self.DBUS = 'BUSY'
+            else:
+                if self.dbus_second_word_ctr < 0:
+                    self.dbus_second_word_ctr  =0
+                    self.DBUS = 'FREE'
+                else:
+                    self.dbus_second_word_ctr  -=0
+                    self.DBUS = 'BUSY'
 
             print "-------------"+str(i)+"--------------"
             self.WB.execute_unit()
@@ -176,12 +193,24 @@ class Pipeline:
                         first_word_time,second_word_time = self._calc_memory_cycles(EXIU_inst)
                         if(self.first_word_hit and self.second_word_hit):
                             self.complete_execution(self.move_inst_unit_unpipelined(self.EXMEM,self.EXIU,first_word_time+second_word_time),'EXIU',i)
+                            self.dbus_first_word_ctr = 0
+                            self.dbus_second_word_ctr = 0            
                         else:
                             if(self.IBUS=='FREE'):
-                                self.DBUS = 'BUSY'
-                                self.dbus_access = i
-                                self.complete_execution(self.move_inst_unit_unpipelined(self.EXMEM,self.EXIU,first_word_time+second_word_time),'EXIU',i)
-
+                                if self.first_word_hit== False and self.second_word_hit == False:
+                                    self.DBUS = 'BUSY'
+                                    self.dbus_access = i
+                                    self.complete_execution(self.move_inst_unit_unpipelined(self.EXMEM,self.EXIU,first_word_time+second_word_time),'EXIU',i)
+                                elif self.first_word_hit == False and self.second_word_hit == True:
+                                    self.dbus_first_word_ctr = first_word_time-1
+                                    self.dbus_second_word_ctr = -second_word_time
+                                    self.DBUS = 'BUSY'
+                                    self.dbus_access = i
+                                    self.complete_execution(self.move_inst_unit_unpipelined(self.EXMEM,self.EXIU,first_word_time+second_word_time),'EXIU',i)
+                                elif self.first_word_hit == True and self.second_word_hit == False:
+                                    self.dbus_first_word_ctr = -first_word_time
+                                    self.dbus_second_word_ctr = second_word_time-1
+                                    self.complete_execution(self.move_inst_unit_unpipelined(self.EXMEM,self.EXIU,first_word_time+second_word_time),'EXIU',i)
                     else:
                         self.result[EXIU_inst.inst_addr][7] = 'Y'
                 else:
@@ -214,22 +243,26 @@ class Pipeline:
             else:
                 self.complete_execution(self.move_inst_unit(self.ID,self.IF),'IF',i)
 
-            if(self.IF.is_free()):
-                cache_hit ,fetch_stall_cycles = self.icache.read(self.registers['PC']*4)
+            if(self.IF.is_free() and self.all_inst_fetched==False):
+                cache_hit ,fetch_stall_cycles = self.icache.is_hit(self.registers['PC']*4)
                 if(cache_hit):
+                    cache_hit ,fetch_stall_cycles = self.icache.read(self.registers['PC']*4)
                     self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
                 else:
                     if(self.DBUS=='FREE'):
+                        cache_hit ,fetch_stall_cycles = self.icache.read(self.registers['PC']*4)
                         self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
                         self.IBUS = 'BUSY'
                     else:
                         if(self.dbus_access==i):
+                            cache_hit ,fetch_stall_cycles = self.icache.read(self.registers['PC']*4)
                             self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
                             self.IBUS = 'BUSY'
                             self.DBUS = 'FREE'
                             self.bus_contention = True
                         else:
                             pass # STALL or do not move in IF stage
+
             if(self.IF.peek_completed_inst()!=False):
                 self.bus_contention = False
                 self.IBUS = 'FREE'
@@ -357,6 +390,8 @@ class Pipeline:
                 if(execution_unit=='EXMEM'):
                     self.DBUS = 'FREE'
                     self.bus_contention = False
+                    self.dbus_first_word_ctr = 0
+                    self.dbus_second_word_ctr = 0
             elif(execution_unit=='ID'):
                 self.result[instruction.inst_addr][1] = clk
                 self.register_status[instruction.dest]='BUSY'
