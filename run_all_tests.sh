@@ -33,7 +33,7 @@ for name in "${tests[@]}"
     configFile=$name"/config.txt"
     resultFile=$name"/result.txt"
 
-    python Simulator.py  "$instFile" "$dataFile" "$regFile" "$configFile" "result.txt"
+    python simulator.py  "$instFile" "$dataFile" "$regFile" "$configFile" "result.txt"
     echo -e "=======================================================================\n"
     cat "$name/result.txt"
 
