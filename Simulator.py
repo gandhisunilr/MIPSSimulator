@@ -84,31 +84,35 @@ class Pipeline:
         f.close()
         
         # Read config file
-        f = open(file_config)
-        lines = f.readlines()
-        EXADD_params = lines[0].split(':')[1].strip()
-        EXMULT_params = lines[1].split(':')[1].strip()
-        EXDIV_params = lines[2].split(':')[1].strip()
-        EXINT_params = lines[3].split(':')[1].strip()
-        ICache_params = lines[4].split(':')[1].strip()
-        DCache_params = lines[5].split(':')[1].strip()
+        try:
+            f = open(file_config)
+            lines = f.readlines()
+            EXADD_params = lines[0].split(':')[1].strip()
+            EXMULT_params = lines[1].split(':')[1].strip()
+            EXDIV_params = lines[2].split(':')[1].strip()
+            EXINT_params = lines[3].split(':')[1].strip()
+            ICache_params = lines[4].split(':')[1].strip()
+            DCache_params = lines[5].split(':')[1].strip()
 
-        self.EXADD_cycles = int(EXADD_params.split(',')[0].strip(','))
-        self.EXADD_pipelined = EXADD_params.split(',')[1].upper().strip()=='YES'
-        
-        self.EXMULT_cycles = int(EXMULT_params.split(',')[0].strip(','))
-        self.EXMULT_pipelined = EXMULT_params.split(',')[1].upper().strip()=='YES'
-        
-        self.EXDIV_cycles = int(EXDIV_params.split(',')[0].strip(','))
-        self.EXDIV_pipelined = EXDIV_params.split(',')[1].upper().strip()=='YES'
-        
-        self.EXINT_cycles = int(EXINT_params.split()[0].strip(','))
+            self.EXADD_cycles = int(EXADD_params.split(',')[0].strip(','))
+            self.EXADD_pipelined = EXADD_params.split(',')[1].upper().strip()=='YES'
+            
+            self.EXMULT_cycles = int(EXMULT_params.split(',')[0].strip(','))
+            self.EXMULT_pipelined = EXMULT_params.split(',')[1].upper().strip()=='YES'
+            
+            self.EXDIV_cycles = int(EXDIV_params.split(',')[0].strip(','))
+            self.EXDIV_pipelined = EXDIV_params.split(',')[1].upper().strip()=='YES'
+            
+            self.EXINT_cycles = int(EXINT_params.split()[0].strip(','))
 
-        self.ICache_cycles = int(ICache_params.split()[0].strip(','))
-        
-        self.DCache_cycles = int(DCache_params.split()[0].strip(','))
+            self.ICache_cycles = int(ICache_params.split()[0].strip(','))
+            
+            self.DCache_cycles = int(DCache_params.split()[0].strip(','))
 
-        f.close()
+            f.close()
+        except Exception, e:
+            print "Error: Invalid config file"
+            exit()
 
         # Read register file
         file = open(file_reg, 'r')
@@ -124,18 +128,18 @@ class Pipeline:
         self.data = {self.base_address+(i*self.word_size):int(data_string[i].strip(),2) for i in range(len(data_string))}
 
     def update_pipeline(self):
-        print self.registers
+        # print self.registers
         first_instruction = Instruction(self.set_of_instructions[self.registers['PC']].strip(),self.current_inst)
         
         cache_hit ,fetch_stall_cycles = self.icache.read(self.registers['PC']*4)
         self.move_inst_unit_unpipelined(self.IF,None,fetch_stall_cycles)
         
-        print "-------------0--------------"
-        print self.__repr__()
+        # print "-------------0--------------"
+        # print self.__repr__()
         
         i = 1
         while(1):
-            if(self.WB.is_free() and self.EXADD.is_free() and self.EXMULT.is_free() and self.EXDIV.is_free() and self.EXMEM.is_free() and self.EXIU.is_free() and self.all_inst_fetched):
+            if(self.WB.is_free() and self.EXADD.is_free() and self.EXMULT.is_free() and self.EXDIV.is_free() and self.EXMEM.is_free() and self.EXIU.is_free() and self.all_inst_fetched and self.IF.is_free()):
                 break
    
             if self.dbus_first_word_ctr!=0:
@@ -146,14 +150,14 @@ class Pipeline:
                     self.dbus_first_word_ctr -=1 
                     self.DBUS = 'BUSY'
             else:
-                if self.dbus_second_word_ctr < 0:
+                if self.dbus_second_word_ctr <= 0:
                     self.dbus_second_word_ctr  =0
                     self.DBUS = 'FREE'
                 else:
                     self.dbus_second_word_ctr  -=0
                     self.DBUS = 'BUSY'
 
-            print "-------------"+str(i)+"--------------"
+            # print "-------------"+str(i)+"--------------"
             self.WB.execute_unit()
             self.complete_execution(self.WB.get_completed_inst(),'WB',i)
 
@@ -191,6 +195,8 @@ class Pipeline:
                 if(EXIU_inst.operation in ['LW', 'SW', 'L.D', 'S.D'] ):
                     if(self.EXMEM.is_free()):
                         first_word_time,second_word_time = self._calc_memory_cycles(EXIU_inst)
+                        if second_word_time==0:
+                            self.second_word_hit=0
                         if(self.first_word_hit and self.second_word_hit):
                             self.complete_execution(self.move_inst_unit_unpipelined(self.EXMEM,self.EXIU,first_word_time+second_word_time),'EXIU',i)
                             self.dbus_first_word_ctr = 0
@@ -302,7 +308,8 @@ class Pipeline:
             instruction = Instruction(self.set_of_instructions[i],i)
             if instruction.label==label:
                 return i
-
+        print "Error: Invalid instruction: missing label"
+        exit()
 
     def move_inst_unit(self,to_unit,from_unit):
         if(to_unit.is_free()):
@@ -380,7 +387,7 @@ class Pipeline:
                 self.result[instruction.inst_addr] = [0]*8
                 self.inst_exec_list[instruction.inst_addr] = instruction.instruction_str
             if(execution_unit=='WB'):
-                print instruction.operation+" is completed"
+                # print instruction.operation+" is completed"
                 self.result[instruction.inst_addr][3] = clk
                 self.register_status[instruction.dest]='FREE'
             elif(execution_unit in ['EXADD','EXMULT','EXDIV','EXMEM']):
