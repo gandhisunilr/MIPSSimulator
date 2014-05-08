@@ -409,6 +409,12 @@ class Pipeline:
                 op1 = instruction.op1
                 op2 = instruction.op2
                 dest = instruction.dest
+            if instruction.operation in ['LW', 'L.D']:
+                op1 = instruction.op1.split('(')[1].strip(')')
+            if instruction.operation in ['SW', 'S.D']:
+                op2 = instruction.op1.split('(')[1].strip(')')
+                dest = None
+                op1 = instruction.dest
             if(op1 in self.register_status):
                 if(self.register_status[op1]=='BUSY'):
                     self.result[instruction.inst_addr][4] = 'Y'
